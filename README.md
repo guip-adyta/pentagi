@@ -28,6 +28,7 @@
 - [Building](#%EF%B8%8F-building)
 - [Credits](#-credits)
 - [License](#-license)
+- [Extensions](./REXT.md)
 
 ## Overview
 

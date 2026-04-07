@@ -753,12 +753,8 @@ func (fp *flowProvider) performSearcher(
 }
 
 // performOsint runs the OSINT (open-source intelligence) agent loop.
-// It mirrors performPentester but uses the OptionsTypeOsint model config and
-// the MsgchainTypeOsint chain type so it gets its own model selection,
-// pricing, and persisted message history. It reuses SearcherExecutorConfig
-// and GetSearcherExecutor since the tool surface (web search, DNS, scraper,
-// memorist) is the same — what differentiates the OSINT agent is the
-// system prompt and its dedicated model configuration.
+// It mirrors performPentester for the agent execution loop.
+// What differentiates the OSINT agent is the system prompt.
 func (fp *flowProvider) performOsint(
 	ctx context.Context,
 	taskID, subtaskID *int64,
