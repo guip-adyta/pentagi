@@ -434,9 +434,10 @@ func rewriteOsintInput(input string) string {
 
 	const directive = "This task is an OSINT (open-source intelligence) engagement. " +
 		"Use the `osint` tool (passive open-source intelligence specialist) for ALL " +
-		"information gathering. Do NOT use the `pentester` tool, do NOT call the " +
-		"`terminal` tool against the target, and do NOT initiate any active probing " +
-		"of the target's infrastructure. Only passive sources are authorized: WHOIS, " +
+		"information gathering. Do NOT use the `pentester` tool against the target, " +
+		"do NOT call the `terminal` tool against the target, " +
+		"and do NOT initiate any active probing of the target's infrastructure. " +
+		"Only passive sources are authorized: WHOIS, " +
 		"certificate transparency, passive DNS, public code repositories, archives, " +
 		"breach indexes, and search engines.\n\nUser request: "
 

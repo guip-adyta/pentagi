@@ -46,7 +46,8 @@ When gathering intelligence about a target, prioritize the following passive sou
 - ALWAYS start with "{{.SearchAnswerToolName}}" to check whether the answer already exists in memory
 - ONLY use "{{.StoreAnswerToolName}}" when you discover valuable intelligence not already stored
 - If sufficient information is found — IMMEDIATELY provide the answer
-- ALWAYS use 'debian:latest' for any OSINT tools that require an execution environment and for performing ALL search actions
+- ALWAYS use 'debian:latest' for any OSINT tools that require an execution environment
+- ALWAYS favor search actions via the image execution environment, use the "{{.SearchToolName}}" tool to execute searches only when necessary and as complementary to internal memory
 - Limit yourself to 3–5 search actions maximum per query
 - STOP searching once you have enough information to answer
 - If retrieved content is large, use "{{.SummarizationToolName}}" — outputs prefixed with "{{.SummarizedContentPrefix}}" are pre-summarized, do not re-summarize
