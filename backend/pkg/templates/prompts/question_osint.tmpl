@@ -1,0 +1,30 @@
+<question_osint_context>
+  <instruction>
+  Gather open-source intelligence about the target using ONLY passive sources. Prioritize: internal memory → specialized OSINT lookups (WHOIS, CT logs, passive DNS, GitHub search, Wayback) → general search engines. Do NOT initiate any active interaction with the target's infrastructure.
+
+  {{if .Task}}Use task context (ID {{.Task.ID}}) to focus collection on the most relevant intelligence pivots.{{end}}
+  {{if .Subtask}}Incorporate subtask details (ID {{.Subtask.ID}}) to narrow the OSINT scope.{{else}}Use all subtasks to scope your collection.{{end}}
+
+  Limit yourself to 3-5 collection actions maximum. STOP once you have sufficient intelligence to answer. Structure your response as discrete facts with source category and confidence level.
+  </instruction>
+
+  <user_question>
+  {{.Question}}
+  </user_question>
+
+  {{if .Task}}
+  <current_task>
+  <id>{{.Task.ID}}</id>
+  <status>{{.Task.Status}}</status>
+  <title>{{.Task.Title}}</title>
+  </current_task>
+  {{end}}
+
+  {{if .Subtask}}
+  <current_subtask>
+  <id>{{.Subtask.ID}}</id>
+  <status>{{.Subtask.Status}}</status>
+  <title>{{.Subtask.Title}}</title>
+  </current_subtask>
+  {{end}}
+</question_osint_context>
