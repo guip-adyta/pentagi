@@ -29,6 +29,7 @@ const (
 	SearxngToolName           = "searxng"
 	SploitusToolName          = "sploitus"
 	SearchToolName            = "search"
+	OsintToolName             = "osint"
 	SearchResultToolName      = "search_result"
 	EnricherResultToolName    = "enricher_result"
 	SearchInMemoryToolName    = "search_in_memory"
@@ -109,6 +110,7 @@ var toolsTypeMapping = map[string]ToolType{
 	SearxngToolName:           SearchNetworkToolType,
 	SploitusToolName:          SearchNetworkToolType,
 	SearchToolName:            AgentToolType,
+	OsintToolName:             AgentToolType,
 	SearchResultToolName:      StoreAgentResultToolType,
 	EnricherResultToolName:    StoreAgentResultToolType,
 	SearchInMemoryToolName:    SearchVectorDbToolType,
@@ -147,6 +149,7 @@ var allowedStoringInMemoryTools = []string{
 	PerplexityToolName,
 	SearxngToolName,
 	SploitusToolName,
+	OsintToolName,
 	MaintenanceToolName,
 	CoderToolName,
 	PentesterToolName,
@@ -188,6 +191,17 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"by your complex question to the researcher team member, also you can add some instructions to get result " +
 			"in a specific format or structure or content type like " +
 			"code or command samples, manuals, guides, exploits, vulnerability details, repositories, libraries, etc.",
+		Parameters: reflector.Reflect(&ComplexSearch{}),
+	},
+	OsintToolName: {
+		Name: OsintToolName,
+		Description: "Call to OSINT (open-source intelligence) specialist team member to gather intelligence " +
+			"about a target using ONLY passive sources such as WHOIS history, certificate transparency logs, " +
+			"passive DNS, public GitHub/GitLab repositories and leaked secrets, Wayback Machine archives, " +
+			"breach corpora, and search-engine dorks. Use this tool when the task requires reconnaissance " +
+			"or footprinting WITHOUT any active interaction with the target's infrastructure (no port scans, " +
+			"no HTTP requests against target hosts, no credential testing). Prefer this over the regular " +
+			"`search` tool whenever the question is specifically about gathering OSINT on a known target.",
 		Parameters: reflector.Reflect(&ComplexSearch{}),
 	},
 	SearchResultToolName: {
@@ -382,7 +396,7 @@ func getMessageType(name string) database.MsglogType {
 		return database.MsglogTypeFile
 	case BrowserToolName:
 		return database.MsglogTypeBrowser
-	case MemoristToolName, SearchToolName, GoogleToolName, DuckDuckGoToolName, TavilyToolName, TraversaalToolName,
+	case MemoristToolName, SearchToolName, OsintToolName, GoogleToolName, DuckDuckGoToolName, TavilyToolName, TraversaalToolName,
 		PerplexityToolName, SearxngToolName, SploitusToolName,
 		SearchGuideToolName, SearchAnswerToolName, SearchCodeToolName, SearchInMemoryToolName, GraphitiSearchToolName:
 		return database.MsglogTypeSearch

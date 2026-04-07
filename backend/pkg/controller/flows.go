@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"pentagi/pkg/config"
@@ -140,6 +141,16 @@ func (fc *flowController) CreateFlow(
 ) (FlowWorker, error) {
 	fc.mx.Lock()
 	defer fc.mx.Unlock()
+
+	// OSINT keyword routing.
+	//
+	// If the user prefixes their request with the literal "OSINT" keyword
+	// (case-insensitive, optionally followed by ':', '-' or ','), strip the
+	// keyword and prepend a directive that biases the primary agent toward
+	// the OSINT specialist for the entire flow. The primary agent always has
+	// the `osint` tool available in its function list (see GetPrimaryExecutor),
+	// so this just steers it to use that tool instead of `pentester` / `search`.
+	input = rewriteOsintInput(input)
 
 	fw, err := NewFlowWorker(ctx, newFlowWorkerCtx{
 		userID:    userID,
@@ -376,4 +387,61 @@ func (fc *flowController) RenameFlow(ctx context.Context, flowID int64, title st
 	}
 
 	return flow.Rename(ctx, title)
+}
+
+// osintKeyword is the literal prefix the user can place at the start of their
+// flow input to opt into OSINT-specialist routing. Comparison is
+// case-insensitive and tolerates an optional ':', '-' or ',' immediately after.
+const osintKeyword = "OSINT"
+
+// rewriteOsintInput detects an OSINT prefix in the user input and, if found,
+// strips the keyword and prepends a directive that biases the primary agent
+// toward the OSINT specialist (passive recon only). When no prefix is present
+// the input is returned unchanged.
+//
+// Examples of inputs that trigger rewriting:
+//
+//	"OSINT example.com"
+//	"osint: gather everything about acme corp"
+//	"Osint - find leaked credentials for acme.io"
+//
+// The rewritten input keeps the user's original request verbatim and wraps it
+// with an instruction the primary agent will see as the first user message in
+// the flow's primary chain.
+func rewriteOsintInput(input string) string {
+	trimmed := strings.TrimSpace(input)
+	if len(trimmed) < len(osintKeyword) {
+		return input
+	}
+	if !strings.EqualFold(trimmed[:len(osintKeyword)], osintKeyword) {
+		return input
+	}
+
+	// The character right after the keyword must be a separator (whitespace,
+	// ':', '-' or ','), otherwise we'd match words like "OSINTOOLS".
+	rest := trimmed[len(osintKeyword):]
+	if len(rest) > 0 {
+		switch rest[0] {
+		case ' ', '\t', '\n', '\r', ':', '-', ',':
+			// ok, real OSINT prefix
+		default:
+			return input
+		}
+	}
+
+	rest = strings.TrimLeft(rest, " \t\n\r:,-")
+	rest = strings.TrimSpace(rest)
+
+	const directive = "This task is an OSINT (open-source intelligence) engagement. " +
+		"Use the `osint` tool (passive open-source intelligence specialist) for ALL " +
+		"information gathering. Do NOT use the `pentester` tool, do NOT call the " +
+		"`terminal` tool against the target, and do NOT initiate any active probing " +
+		"of the target's infrastructure. Only passive sources are authorized: WHOIS, " +
+		"certificate transparency, passive DNS, public code repositories, archives, " +
+		"breach indexes, and search engines.\n\nUser request: "
+
+	if rest == "" {
+		return directive + "(no further details provided)"
+	}
+	return directive + rest
 }

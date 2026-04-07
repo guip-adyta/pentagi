@@ -970,6 +970,8 @@ func (pc *providerController) TestAgent(
 		testConfig.Installer = config
 	case pconfig.OptionsTypePentester:
 		testConfig.Pentester = config
+	case pconfig.OptionsTypeOsint:
+		testConfig.Osint = config
 	default:
 		return result, fmt.Errorf("unsupported agent type: %s", agentType)
 	}
@@ -1026,6 +1028,8 @@ func (pc *providerController) TestAgent(
 		result = results.Installer
 	case pconfig.OptionsTypePentester:
 		result = results.Pentester
+	case pconfig.OptionsTypeOsint:
+		result = results.Osint
 	default:
 		return result, fmt.Errorf("unexpected agent type: %s", agentType)
 	}
@@ -1124,6 +1128,15 @@ func (pc *providerController) patchProviderConfig(
 	}
 	if config.Pentester == nil {
 		config.Pentester = defaultCfg.Pentester
+	}
+	if config.Osint == nil {
+		// Default OSINT agent inherits from Searcher config since
+		// providers don't ship a built-in default for the new agent type.
+		if defaultCfg.Osint != nil {
+			config.Osint = defaultCfg.Osint
+		} else {
+			config.Osint = defaultCfg.Searcher
+		}
 	}
 
 	config.SetDefaultOptions(defaultCfg.GetDefaultOptions())

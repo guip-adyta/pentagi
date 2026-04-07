@@ -196,6 +196,7 @@ type PrimaryExecutorConfig struct {
 	Memorist   ExecutorHandler
 	Pentester  ExecutorHandler
 	Searcher   ExecutorHandler
+	Osint      ExecutorHandler
 	Summarizer SummarizeHandler
 }
 
@@ -728,6 +729,10 @@ func (fte *flowToolsExecutor) GetPrimaryExecutor(cfg PrimaryExecutorConfig) (Con
 		return nil, fmt.Errorf("searcher handler is required")
 	}
 
+	if cfg.Osint == nil {
+		return nil, fmt.Errorf("osint handler is required")
+	}
+
 	ce := &customExecutor{
 		flowID:    fte.flowID,
 		taskID:    &cfg.TaskID,
@@ -744,6 +749,7 @@ func (fte *flowToolsExecutor) GetPrimaryExecutor(cfg PrimaryExecutorConfig) (Con
 			registryDefinitions[MemoristToolName],
 			registryDefinitions[PentesterToolName],
 			registryDefinitions[SearchToolName],
+			registryDefinitions[OsintToolName],
 		},
 		handlers: map[string]ExecutorHandler{
 			FinalyToolName:      cfg.Barrier,
@@ -753,6 +759,7 @@ func (fte *flowToolsExecutor) GetPrimaryExecutor(cfg PrimaryExecutorConfig) (Con
 			MemoristToolName:    cfg.Memorist,
 			PentesterToolName:   cfg.Pentester,
 			SearchToolName:      cfg.Searcher,
+			OsintToolName:       cfg.Osint,
 		},
 		barriers: map[string]struct{}{
 			FinalyToolName: {},

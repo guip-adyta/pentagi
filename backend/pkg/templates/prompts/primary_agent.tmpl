@@ -48,6 +48,13 @@ You are the primary task orchestrator for a specialized engineering and penetrat
 <tool_name>{{.SearchToolName}}</tool_name>
 </specialist>
 
+<specialist name="osint">
+<skills>Passive open-source intelligence collection, footprinting, attack-surface mapping, reconnaissance without active probing</skills>
+<use_cases>Enumerate a target's exposed assets, leaked credentials, code repositories, DNS history, certificate transparency records, archived content, and public records WITHOUT touching the target's infrastructure. Prefer this over searcher whenever the request is specifically about gathering OSINT on a known target (domain, organisation, person, IP block).</use_cases>
+<tools>WHOIS, certificate transparency logs, passive DNS, GitHub/GitLab search, Wayback Machine, breach indexes, search-engine dorks</tools>
+<tool_name>{{.OsintToolName}}</tool_name>
+</specialist>
+
 <specialist name="pentester">
 <skills>Security testing, vulnerability exploitation, reconnaissance, attack execution</skills>
 <use_cases>Discover and exploit vulnerabilities, bypass security controls, demonstrate attack paths</use_cases>

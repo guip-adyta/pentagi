@@ -761,6 +761,110 @@ func (fp *flowProvider) GetSubtaskSearcherHandler(ctx context.Context, taskID, s
 	}, nil
 }
 
+// GetSubtaskOsintHandler returns a handler that delegates to the OSINT agent.
+// It mirrors GetPentesterHandler but renders the dedicated OSINT prompts
+// (PromptTypeOsint / PromptTypeQuestionOsint) and dispatches via performOsint,
+// so the call is billed and tracked under the OSINT agent type while reusing
+// the existing Pentester tool argument shape.
+func (fp *flowProvider) GetSubtaskOsintHandler(ctx context.Context, taskID, subtaskID *int64) (tools.ExecutorHandler, error) {
+	ptrTask, ptrSubtask, err := fp.getTaskAndSubtask(ctx, taskID, subtaskID)
+	if err != nil {
+		return nil, err
+	}
+
+	executionContext, err := fp.getExecutionContext(ctx, taskID, subtaskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get execution context: %w", err)
+	}
+
+	osintHandler := func(ctx context.Context, action tools.PentesterAction) (string, error) {
+		osintContext := map[string]map[string]any{
+			"user": {
+				"Question": action.Question,
+			},
+			"system": {
+				"HackResultToolName":      tools.HackResultToolName,
+				"SearchGuideToolName":     tools.SearchGuideToolName,
+				"StoreGuideToolName":      tools.StoreGuideToolName,
+				"GraphitiEnabled":         fp.graphitiClient != nil && fp.graphitiClient.IsEnabled(),
+				"GraphitiSearchToolName":  tools.GraphitiSearchToolName,
+				"SearchToolName":          tools.SearchToolName,
+				"CoderToolName":           tools.CoderToolName,
+				"AdviceToolName":          tools.AdviceToolName,
+				"MemoristToolName":        tools.MemoristToolName,
+				"MaintenanceToolName":     tools.MaintenanceToolName,
+				"SummarizationToolName":   cast.SummarizationToolName,
+				"SummarizedContentPrefix": strings.ReplaceAll(csum.SummarizedContentPrefix, "\n", "\\n"),
+				"IsDefaultDockerImage":    strings.HasPrefix(strings.ToLower(fp.image), pentestDockerImage),
+				"DockerImage":             fp.image,
+				"Cwd":                     docker.WorkFolderPathInContainer,
+				"ContainerPorts":          fp.getContainerPortsDescription(),
+				"ExecutionContext":        executionContext,
+				"Lang":                    fp.language,
+				"CurrentTime":             getCurrentTime(),
+				"ToolPlaceholder":         ToolPlaceholder,
+			},
+		}
+
+		osintCtx, observation := obs.Observer.NewObservation(ctx)
+		osintEvaluator := observation.Evaluator(
+			langfuse.WithEvaluatorName("render osint agent prompts"),
+			langfuse.WithEvaluatorInput(osintContext),
+			langfuse.WithEvaluatorMetadata(langfuse.Metadata{
+				"user_context":   osintContext["user"],
+				"system_context": osintContext["system"],
+				"task":           ptrTask,
+				"subtask":        ptrSubtask,
+				"lang":           fp.language,
+			}),
+		)
+
+		userOsintTmpl, err := fp.prompter.RenderTemplate(templates.PromptTypeQuestionOsint, osintContext["user"])
+		if err != nil {
+			return "", wrapErrorEndEvaluatorSpan(osintCtx, osintEvaluator, "failed to get user osint template", err)
+		}
+
+		systemOsintTmpl, err := fp.prompter.RenderTemplate(templates.PromptTypeOsint, osintContext["system"])
+		if err != nil {
+			return "", wrapErrorEndEvaluatorSpan(osintCtx, osintEvaluator, "failed to get system osint template", err)
+		}
+
+		osintEvaluator.End(
+			langfuse.WithEvaluatorOutput(map[string]any{
+				"user_template":   userOsintTmpl,
+				"system_template": systemOsintTmpl,
+			}),
+			langfuse.WithEvaluatorStatus("success"),
+			langfuse.WithEvaluatorLevel(langfuse.ObservationLevelDebug),
+		)
+
+		pentesterResult, err := fp.performOsint(ctx, taskID, subtaskID, systemOsintTmpl, userOsintTmpl, action.Question)
+		if err != nil {
+			return "", wrapError(ctx, "failed to get pentester result", err)
+		}
+
+		return pentesterResult, nil
+	}
+
+	return func(ctx context.Context, name string, args json.RawMessage) (string, error) {
+		ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "providers.flowProvider.getSubtaskOsintHandler")
+		defer span.End()
+
+		var action tools.PentesterAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			logrus.WithContext(ctx).WithError(err).Error("failed to unmarshal osint payload")
+			return "", fmt.Errorf("failed to unmarshal osint payload: %w", err)
+		}
+
+		pentesterResult, err := osintHandler(ctx, action)
+		if err != nil {
+			return "", err
+		}
+
+		return pentesterResult, nil
+	}, nil
+}
+
 func (fp *flowProvider) GetTaskSearcherHandler(ctx context.Context, taskID int64) (tools.ExecutorHandler, error) {
 	task, err := fp.db.GetTask(ctx, taskID)
 	if err != nil {

@@ -106,6 +106,7 @@ type FlowProviderHandlers interface {
 	GetMemoristHandler(ctx context.Context, taskID, subtaskID *int64) (tools.ExecutorHandler, error)
 	GetPentesterHandler(ctx context.Context, taskID, subtaskID *int64) (tools.ExecutorHandler, error)
 	GetSubtaskSearcherHandler(ctx context.Context, taskID, subtaskID *int64) (tools.ExecutorHandler, error)
+	GetSubtaskOsintHandler(ctx context.Context, taskID, subtaskID *int64) (tools.ExecutorHandler, error)
 	GetTaskSearcherHandler(ctx context.Context, taskID int64) (tools.ExecutorHandler, error)
 	GetSummarizeResultHandler(taskID, subtaskID *int64) tools.SummarizeHandler
 }
@@ -595,6 +596,7 @@ func (fp *flowProvider) PrepareAgentChain(ctx context.Context, taskID, subtaskID
 	systemAgentTmpl, err := fp.prompter.RenderTemplate(templates.PromptTypePrimaryAgent, map[string]any{
 		"FinalyToolName":          tools.FinalyToolName,
 		"SearchToolName":          tools.SearchToolName,
+		"OsintToolName":           tools.OsintToolName,
 		"PentesterToolName":       tools.PentesterToolName,
 		"CoderToolName":           tools.CoderToolName,
 		"AdviceToolName":          tools.AdviceToolName,
@@ -690,6 +692,12 @@ func (fp *flowProvider) PerformAgentChain(ctx context.Context, taskID, subtaskID
 		return PerformResultError, fmt.Errorf("failed to get searcher handler: %w", err)
 	}
 
+	osint, err := fp.GetSubtaskOsintHandler(ctx, &taskID, &subtaskID)
+	if err != nil {
+		logger.WithError(err).Error("failed to get osint handler")
+		return PerformResultError, fmt.Errorf("failed to get osint handler: %w", err)
+	}
+
 	subtask, err := fp.db.GetSubtask(ctx, subtaskID)
 	if err != nil {
 		logger.WithError(err).Error("failed to get subtask")
@@ -723,6 +731,7 @@ func (fp *flowProvider) PerformAgentChain(ctx context.Context, taskID, subtaskID
 		Memorist:  memorist,
 		Pentester: pentester,
 		Searcher:  searcher,
+		Osint:     osint,
 		Barrier: func(ctx context.Context, name string, args json.RawMessage) (string, error) {
 			loggerFunc := logger.WithContext(ctx).WithFields(logrus.Fields{
 				"name": name,

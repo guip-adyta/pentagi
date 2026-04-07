@@ -752,6 +752,110 @@ func (fp *flowProvider) performSearcher(
 	return searchResult.Result, nil
 }
 
+// performOsint runs the OSINT (open-source intelligence) agent loop.
+// It mirrors performPentester but uses the OptionsTypeOsint model config and
+// the MsgchainTypeOsint chain type so it gets its own model selection,
+// pricing, and persisted message history. It reuses SearcherExecutorConfig
+// and GetSearcherExecutor since the tool surface (web search, DNS, scraper,
+// memorist) is the same — what differentiates the OSINT agent is the
+// system prompt and its dedicated model configuration.
+func (fp *flowProvider) performOsint(
+	ctx context.Context,
+	taskID, subtaskID *int64,
+	systemOsintTmpl, userOsintTmpl, question string,
+) (string, error) {
+	var (
+		hackResult   tools.HackResult
+		optAgentType = pconfig.OptionsTypeOsint
+		msgChainType = database.MsgchainTypePentester
+	)
+
+	adviser, err := fp.GetAskAdviceHandler(ctx, taskID, subtaskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get adviser handler: %w", err)
+	}
+
+	coder, err := fp.GetCoderHandler(ctx, taskID, subtaskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get coder handler: %w", err)
+	}
+
+	installer, err := fp.GetInstallerHandler(ctx, taskID, subtaskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get installer handler: %w", err)
+	}
+
+	memorist, err := fp.GetMemoristHandler(ctx, taskID, subtaskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get memorist handler: %w", err)
+	}
+
+	searcher, err := fp.GetSubtaskSearcherHandler(ctx, taskID, subtaskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get searcher handler: %w", err)
+	}
+
+	ctx = tools.PutAgentContext(ctx, msgChainType)
+	cfg := tools.PentesterExecutorConfig{
+		TaskID:    taskID,
+		SubtaskID: subtaskID,
+		Adviser:   adviser,
+		Coder:     coder,
+		Installer: installer,
+		Memorist:  memorist,
+		Searcher:  searcher,
+		HackResult: func(ctx context.Context, name string, args json.RawMessage) (string, error) {
+			err := json.Unmarshal(args, &hackResult)
+			if err != nil {
+				return "", fmt.Errorf("failed to unmarshal result: %w", err)
+			}
+			return "hack result successfully processed", nil
+		},
+		Summarizer: fp.GetSummarizeResultHandler(taskID, subtaskID),
+	}
+	executor, err := fp.executor.GetPentesterExecutor(cfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to get pentester executor: %w", err)
+	}
+
+	if fp.planning {
+		userOsintTmplWithPlan, err := fp.performPlanner(
+			ctx, taskID, subtaskID, optAgentType, executor, userOsintTmpl, question,
+		)
+		if err != nil {
+			logrus.WithContext(ctx).WithError(err).Warn("failed to get task plan from planner, proceeding without plan")
+		} else {
+			userOsintTmpl = userOsintTmplWithPlan
+		}
+	}
+
+	msgChainID, chain, err := fp.restoreChain(
+		ctx, taskID, subtaskID, optAgentType, msgChainType, systemOsintTmpl, userOsintTmpl,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to restore chain: %w", err)
+	}
+
+	err = fp.performAgentChain(ctx, optAgentType, msgChainID, taskID, subtaskID, chain, executor, fp.summarizer)
+	if err != nil {
+		return "", fmt.Errorf("failed to get task pentester result: %w", err)
+	}
+
+	if agentCtx, ok := tools.GetAgentContext(ctx); ok {
+		fp.putAgentLog(
+			ctx,
+			agentCtx.ParentAgentType,
+			agentCtx.CurrentAgentType,
+			question,
+			hackResult.Result,
+			taskID,
+			subtaskID,
+		)
+	}
+
+	return hackResult.Result, nil
+}
+
 func (fp *flowProvider) performEnricher(
 	ctx context.Context,
 	taskID, subtaskID *int64,

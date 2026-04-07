@@ -150,6 +150,7 @@ const (
 	OptionsTypeInstaller    ProviderOptionsType = "installer"
 	OptionsTypePentester    ProviderOptionsType = "pentester"
 	OptionsTypeReflector    ProviderOptionsType = "reflector"
+	OptionsTypeOsint        ProviderOptionsType = "osint"
 )
 
 var AllAgentTypes = []ProviderOptionsType{
@@ -166,6 +167,7 @@ var AllAgentTypes = []ProviderOptionsType{
 	OptionsTypeCoder,
 	OptionsTypeInstaller,
 	OptionsTypePentester,
+	OptionsTypeOsint,
 }
 
 type ModelConfig struct {
@@ -227,6 +229,7 @@ type ProviderConfig struct {
 	Coder          *AgentConfig      `json:"coder,omitempty" yaml:"coder,omitempty"`
 	Installer      *AgentConfig      `json:"installer,omitempty" yaml:"installer,omitempty"`
 	Pentester      *AgentConfig      `json:"pentester,omitempty" yaml:"pentester,omitempty"`
+	Osint          *AgentConfig      `json:"osint,omitempty" yaml:"osint,omitempty"`
 	defaultOptions []llms.CallOption `json:"-" yaml:"-"`
 	rawConfig      []byte            `json:"-" yaml:"-"`
 }
@@ -244,7 +247,8 @@ const EmptyProviderConfigRaw = `{
   "enricher": {},
   "coder": {},
   "installer": {},
-  "pentester": {}
+  "pentester": {},
+  "osint": {}
 }`
 
 func LoadConfig(configPath string, defaultOptions []llms.CallOption) (*ProviderConfig, error) {
@@ -755,6 +759,8 @@ func (pc *ProviderConfig) GetOptionsForType(optType ProviderOptionsType) []llms.
 		agentConfig = pc.Installer
 	case OptionsTypePentester:
 		agentConfig = pc.Pentester
+	case OptionsTypeOsint:
+		agentConfig = pc.Osint
 	default:
 		return nil
 	}
@@ -809,6 +815,8 @@ func (pc *ProviderConfig) GetPriceInfoForType(optType ProviderOptionsType) *Pric
 		agentConfig = pc.Installer
 	case OptionsTypePentester:
 		agentConfig = pc.Pentester
+	case OptionsTypeOsint:
+		agentConfig = pc.Osint
 	default:
 		return nil
 	}
@@ -839,6 +847,7 @@ func (pc *ProviderConfig) BuildOptionsMap() map[ProviderOptionsType][]llms.CallO
 		OptionsTypeCoder:        pc.GetOptionsForType(OptionsTypeCoder),
 		OptionsTypeInstaller:    pc.GetOptionsForType(OptionsTypeInstaller),
 		OptionsTypePentester:    pc.GetOptionsForType(OptionsTypePentester),
+		OptionsTypeOsint:        pc.GetOptionsForType(OptionsTypeOsint),
 	}
 
 	return options

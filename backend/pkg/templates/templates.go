@@ -36,6 +36,8 @@ const (
 	PromptTypeQuestionInstaller        PromptType = "question_installer"         // human input requesting system installation
 	PromptTypeSearcher                 PromptType = "searcher"                   // gathers intelligence from web sources
 	PromptTypeQuestionSearcher         PromptType = "question_searcher"          // human input requesting information search
+	PromptTypeOsint                    PromptType = "osint"                      // OSINT agent: passive intelligence gathering from public sources
+	PromptTypeQuestionOsint            PromptType = "question_osint"             // human input requesting OSINT lookup
 	PromptTypeMemorist                 PromptType = "memorist"                   // retrieves knowledge from vector memory store
 	PromptTypeQuestionMemorist         PromptType = "question_memorist"          // human input querying past experiences
 	PromptTypeAdviser                  PromptType = "adviser"                    // provides security recommendations and guidance
@@ -71,6 +73,7 @@ var PromptVariables = map[PromptType][]string{
 	PromptTypePrimaryAgent: {
 		"FinalyToolName",
 		"SearchToolName",
+		"OsintToolName",
 		"PentesterToolName",
 		"CoderToolName",
 		"AdviceToolName",
@@ -195,6 +198,22 @@ var PromptVariables = map[PromptType][]string{
 		"ToolPlaceholder",
 	},
 	PromptTypeQuestionSearcher: {
+		"Question",
+		"Task",
+		"Subtask",
+	},
+	PromptTypeOsint: {
+		"SearchResultToolName",
+		"SearchAnswerToolName",
+		"StoreAnswerToolName",
+		"SummarizationToolName",
+		"SummarizedContentPrefix",
+		"ExecutionContext",
+		"Lang",
+		"CurrentTime",
+		"ToolPlaceholder",
+	},
+	PromptTypeQuestionOsint: {
 		"Question",
 		"Task",
 		"Subtask",
@@ -434,6 +453,7 @@ type AgentsPrompts struct {
 	Coder         AgentPrompts
 	Installer     AgentPrompts
 	Searcher      AgentPrompts
+	Osint         AgentPrompts
 	Memorist      AgentPrompts
 	Adviser       AgentPrompts
 	Generator     AgentPrompts
@@ -513,6 +533,10 @@ func GetDefaultPrompts() (*DefaultPrompts, error) {
 			Searcher: AgentPrompts{
 				System: getPrompt(PromptTypeSearcher),
 				Human:  getPrompt(PromptTypeQuestionSearcher),
+			},
+			Osint: AgentPrompts{
+				System: getPrompt(PromptTypeOsint),
+				Human:  getPrompt(PromptTypeQuestionOsint),
 			},
 			Memorist: AgentPrompts{
 				System: getPrompt(PromptTypeMemorist),
